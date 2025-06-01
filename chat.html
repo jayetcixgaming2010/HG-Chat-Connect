@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#22d3ee">
+    <title>🪐 [HG] Cosmic Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@500&display=swap" rel="stylesheet">
+    <link rel="icon" href="/assets/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.0.12/lib/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@6.0.0/dist/wavesurfer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage.js"></script>
+    <style>
+        :root {
+            --primary-blue: #22d3ee;
+            --primary-pink: #f472b6;
+            --bg-dark: #0f172a;
+            --bg-light: #f1f5f9;
+            --text-primary: #e2e8f0;
+            --text-dark: #1e293b;
+            --text-muted: #94a3b8;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glow: 0 0 10px rgba(34, 211, 238, 0.5);
+            --font-size: 16px;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-size: var(--font-size);
+            overflow: hidden;
+            transition: background 0.3s ease;
+        }
+        body.light-theme {
+            background: var(--bg-light);
+            color: var(--text-dark);
+        }
+        #particles-js {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        .app-container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+        .sidebar {
+            width: 300px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid var(--glass-border);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        body.light-theme .sidebar {
+            background: rgba(0, 0, 0, 0.05);
+            border-right: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        .server-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            background: linear-gradient(45deg, var(--primary-blue), var(--primary-pink));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-align: center;
+        }
+        .channel-list h3 {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin: 1rem 0 0.5rem;
+            text-transform: uppercase;
+        }
+        .channel {
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .channel:hover {
+            background: var(--glass-bg);
+            transform: translateX(5px);
+        }
+        .channel.active {
+            background: linear-gradient(45deg, var(--primary-blue), var(--primary-pink));
+            color: #fff;
+        }
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-dark);
+        }
+        body.light-theme .chat-area {
+            background: var(--bg-light);
+        }
+        .chat-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            background: linear-gradient(45deg, var(--primary-blue), var(--primary-pink));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .typing-indicator {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            50% { opacity: 0.5; }
+        }
+        .message {
+            display: flex;
+            gap: 1rem;
+            padding: 0.5rem;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            animation: fadeIn 0.3s ease;
+        }
+        .message:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        .message.pinned {
+            background: var(--glass-bg);
+            border-left: 4px solid var(--primary-blue);
+        }
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            position: relative;
+        }
+        .message-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .message-avatar::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22c55e;
+            border: 2px solid var(--bg-dark);
+        }
+        body.light-theme .message-avatar::after {
+            border-color: var(--bg-light);
+        }
+        .message-content {
+            flex: 1;
+        }
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        .message-username {
+            font-weight: 600;
+        }
+        .message-timestamp {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .message-text {
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        .message-voice {
+            width: 200px;
+            margin-top: 0.5rem;
+        }
+        .message-poll {
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: var(--glass-bg);
+            border-radius: 8px;
+        }
+        .poll-option {
+            display: flex;
+            justify-content: space-between;
+            margin: 0.3rem 0;
+            padding: 0.25rem;
+        }
+        .poll-bar {
+            height: 5px;
+            background: linear-gradient(45deg, var(--primary-blue), var(--primary-pink));
+            border-radius: 5px;
+        }
+        .message-reactions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+        }
+        .message-reactions span {
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0.2rem;
+            border-radius: 5px;
+            background: var(--glass-bg);
+            transition: transform 0.2s ease;
+        }
+        .message-reactions span:hover {
+            transform: scale(1.2);
+        }
+        .message-actions {
+            display: none;
+            gap: 0.5rem;
+        }
+        .message:hover .message-actions {
+            display: flex;
+        }
+        .message-actions button {
+            padding: 0.5rem;
+            border-radius: 5px;
+            background: var(--glass-bg);
+            color: var(--text-primary);
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        body.light-theme .message-actions button {
+            color: var(--text-dark);
+        }
+        .message-actions button:hover {
+            background: linear-gradient(45deg, var(--primary-blue), var(--primary-pink));
+            color: #fff;
+        }
+        .message-input {
+            padding: 1rem;
+            border-top: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+        }
+        body.light-theme .message-input {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .message-input form {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--glass-bg);
+            padding: 0.5rem;
+            border-radius: 8px;
+        }
+        .message-input input[type="text"] {
+            flex: 1;
+            padding: 0.75rem;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+        body.light-theme .message-input input[type="text"] {
+            color: var(--text-dark);
+        }
+        .message-input input[type="text"]:focus {
+            outline: none;
+            box-shadow: var(--glow);
+        }
+        .message-input input[type="file"] {
+            display: none;
+        }
+        .message-input button, .message-input label {
+            padding: 0.75rem;
+            border-radius: 8px;
+            background: var(--glass-bg);
+            color: var(--text-primary);
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        body.light-theme .message-input button, body.light-theme .message-input label {
+            color: var(--text-dark);
+        }
+        .message-input button:hover, .message-input label:hover {
+            background: linear-gradient(45deg, var(--primary-blue), var(--primary-pink));
+            color: #fff;
+        }
+        .emoji-picker {
+            display: none;
+            position: absolute;
+            bottom: 70px;
+            left: 1rem;
+            width: 300px;
+            max-height: 400px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .emoji-picker.active {
+            display: block;
+        }
+        .emoji-picker input {
+            width: 100%;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            border: none;
+            border-radius: 5px;
+            background: var(--glass-bg);
+            color: var(--text-primary);
+        }
+        .emoji-picker .category {
+            margin: 0.5rem 0;
+        }
+        .emoji-picker .category h3 {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+        .emoji-picker .emojis {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
+            gap: 0.5rem;
+        }
+        .emoji-picker .emojis span {
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.2rem;
+            border-radius: 5px;
+            transition: transform 0.2s ease;
+        }
+        .emoji-picker .emojis span:hover {
+            transform: scale(1.2);
+            background: var(--glass-bg);
+        }
+        .settings-panel {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+            z-index: 100;
+        }
+        .settings-panel.active {
+            display: block;
+        }
+        .settings-panel input, .settings-panel select, .settings-panel button {
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            border-radius: 5px;
+            background: var(--glass-bg);
+            color: var(--text-primary);
+            border: none;
+            width: 100%;
+        }
+        body.light-theme .settings-panel input, body.light-theme .settings-panel select, body.light-theme .settings-panel button {
+            color: var(--text-dark);
+        }
+        .auth-modal, .poll-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .auth-modal.active, .poll-modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 12px;
+            width: 300px;
+            text-align: center;
+        }
+        body.light-theme .modal-content {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .modal-content input, .modal-content textarea, .modal-content button {
+            width: 100%;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border: none;
+            border-radius: 5px;
+            background: var(--glass-bg);
+            color: var(--text-primary);
+        }
+        .modal-content button {
+            background: linear-gradient(45deg, var(--primary-blue), var(--primary-pink));
+            color: #fff;
+            cursor: pointer;
+        }
+        .notification {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: var(--glass-bg);
+            padding: 0.75rem;
+            border-radius: 8px;
+            color: var(--text-primary);
+            display: none;
+            z-index: 100;
+        }
+        .notification.active {
+            display: block;
+        }
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            animation: fadeOut 1s ease 1s forwards;
+        }
+        .splash-logo {
+            width: 100px;
+            animation: pulse 1s ease infinite;
+        }
+        .watermark {
+            position: fixed;
+            bottom: 1rem;
+            left: 1rem;
+            opacity: 0.2;
+            width: 50px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+            to { opacity: 0; visibility: hidden; }
+        }
+        @keyframes pulse {
+            50% { transform: scale(1.1); }
+        }
+        @media (max-width: 768px) {
+            .sidebar { width: 200px; }
+            .message-avatar { width: 32px; height: 32px; }
+            .message-voice { width: 150px; }
+            .emoji-picker { width: 250px; }
+        }
+        @media (max-width: 480px) {
+            .sidebar { display: none; }
+            .chat-area { width: 100%; }
+            .message-input form { flex-direction: column; }
+            .message-input button, .message-input label { width: 100%; }
+            .emoji-picker { width: 100%; left: 0; bottom: 60px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="splash-screen">
+        <img src="/assets/favicon.png" class="splash-logo" alt="HG Logo">
+    </div>
+    <div id="particles-js"></div>
+    <img src="/assets/favicon.png" class="watermark" alt="HG Watermark">
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="server-name">🪐 [HG] Cosmic</div>
+            <div class="channel-list">
+                <h3>Kênh</h3>
+                <div class="channel active" data-channel-id="general">#chung</div>
+            </div>
+        </div>
+        <div class="chat-area">
+            <div class="chat-header">#chung</div>
+            <div class="chat-messages">
+                <div class="typing-indicator" style="display: none;"></div>
+            </div>
+            <div class="message-input">
+                <form>
+                    <input type="text" placeholder="Nhắn tin tại #chung" maxlength="1000" required>
+                    <button type="button" class="emoji-button">😊</button>
+                    <label for="file-upload">📎</label>
+                    <input id="file-upload" type="file" accept="audio/*,image/*">
+                    <button type="button" class="voice-button">🎙</button>
+                    <button type="button" class="poll-button">📊</button>
+                    <button type="submit">Gửi</button>
+                </form>
+                <div class="emoji-picker">
+                    <input type="text" id="emoji-search" placeholder="Tìm emoji...">
+                    <div id="emoji-list"></div>
+                </div>
+            </div>
+        </div>
+        <div class="settings-panel">
+            <select id="font-size">
+                <option value="14">Nhỏ</option>
+                <option value="16" selected>Trung bình</option>
+                <option value="18">Lớn</option>
+            </select>
+            <select id="font-family">
+                <option value="Inter">Inter</option>
+                <option value="Orbitron">Orbitron</option>
+            </select>
+            <input id="custom-gradient" type="text" placeholder="Gradient (e.g., #22d3ee, #f472b6)">
+            <button id="toggle-theme">Chuyển Theme</button>
+            <button id="toggle-settings">Đóng</button>
+        </div>
+    </div>
+    <div class="auth-modal">
+        <div class="modal-content">
+            <h2>Đăng nhập</h2>
+            <input id="auth-email" type="email" placeholder="Email">
+            <input id="auth-password" type="password" placeholder="Mật khẩu">
+            <button id="login-email">Đăng nhập</button>
+            <button id="signup">Đăng ký</button>
+        </div>
+    </div>
+    <div class="poll-modal">
+        <div class="modal-content">
+            <h2>Tạo khảo sát</h2>
+            <input id="poll-question" type="text" placeholder="Câu hỏi">
+            <textarea id="poll-options" placeholder="Lựa chọn (mỗi dòng một)"></textarea>
+            <button id="create-poll">Tạo</button>
+        </div>
+    </div>
+    <div class="notification" id="notification"></div>
+    <audio id="notification-sound" src="/assets/notification.mp3"></audio>
+    <script>
+        // Firebase Configuration (Replace with your Firebase project config)
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            databaseURL: "YOUR_DATABASE_URL",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+        const storage = firebase.storage();
+
+        // PWA Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js');
+        }
+
+        // Particles.js
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 50, density: { enable: true, value_area: 800 } },
+                color: { value: ['#22d3ee', '#f472b6'] },
+                shape: { type: 'circle' },
+                opacity: { value: 0.5, random: true },
+                size: { value: 3, random: true },
+                line_linked: { enable: false },
+                move: { enable: true, speed: 1, direction: 'none', random: true }
+            },
+            interactivity: {
+                detect_on: 'canvas',
+                events: { onhover: { enable: true, mode: 'repulse' } },
+                modes: { repulse: { distance: 100, duration: 0.4 } }
+            }
+        });
+
+        // Gradient Animation
+        let hue = 0;
+        setInterval(() => {
+            hue = (hue + 1) % 360;
+            document.documentElement.style.setProperty('--primary-blue', `hsl(${hue}, 80%, 60%)`);
+            document.documentElement.style.setProperty('--primary-pink', `hsl(${(hue + 60) % 360}, 80%, 60%)`);
+        }, 100);
+
+        // Emoji List (Sample from run.vn, replace with full emojis.json)
+        const emojis = [
+            { emoji: "😊", description: "Mặt cười với mắt cười", category: "Mặt cười" },
+            { emoji: "😂", description: "Mặt cười chảy nước mắt", category: "Mặt cười" },
+            { emoji: "😍", description: "Mặt cười với mắt hình trái tim", category: "Mặt cười" },
+            { emoji: "😢", description: "Mặt khóc", category: "Mặt cười" },
+            { emoji: "😺", description: "Mèo cười", category: "Động vật" },
+            { emoji: "🐶", description: "Chó", category: "Động vật" },
+            { emoji: "🍎", description: "Táo đỏ", category: "Thực phẩm" },
+            { emoji: "🍕", description: "Pizza", category: "Thực phẩm" },
+            { emoji: "🚗", description: "Xe hơi", category: "Phương tiện" },
+            { emoji: "🇻🇳", description: "Cờ Việt Nam", category: "Cờ" },
+            // Add full list from emojis.json
+        ];
+
+        let currentUser = null;
+        let currentChannel = 'general';
+        let messageCount = 0;
+        let replyingTo = null;
+        const encryptionKey = CryptoJS.lib.WordArray.random(16).toString();
+
+        // Emoji Picker
+        function initEmojiPicker() {
+            const emojiButton = document.querySelector('.emoji-button');
+            const emojiPicker = document.querySelector('.emoji-picker');
+            const emojiSearch = document.getElementById('emoji-search');
+            const emojiList = document.getElementById('emoji-list');
+            const messageInput = document.querySelector('.message-input input[type="text"]');
+
+            function renderEmojis(filter = '') {
+                emojiList.innerHTML = '';
+                const categories = [...new Set(emojis.map(e => e.category))];
+                categories.forEach(category => {
+                    const filteredEmojis = emojis.filter(e => 
+                        e.category === category && 
+                        (filter === '' || e.description.toLowerCase().includes(filter.toLowerCase()))
+                    );
+                    if (filteredEmojis.length === 0) return;
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.classList.add('category');
+                    categoryDiv.innerHTML = `<h3>${category}</h3>`;
+                    const emojisDiv = document.createElement('div');
+                    emojisDiv.classList.add('emojis');
+                    filteredEmojis.forEach(({ emoji }) => {
+                        const span = document.createElement('span');
+                        span.textContent = emoji;
+                        span.addEventListener('click', () => {
+                            messageInput.value += emoji;
+                            emojiPicker.classList.remove('active');
+                            messageInput.focus();
+                        });
+                        emojisDiv.appendChild(span);
+                    });
+                    categoryDiv.appendChild(emojisDiv);
+                    emojiList.appendChild(categoryDiv);
+                });
+            }
+
+            emojiButton.addEventListener('click', () => {
+                emojiPicker.classList.toggle('active');
+                if (emojiPicker.classList.contains('active')) {
+                    emojiSearch.value = '';
+                    renderEmojis();
+                    emojiSearch.focus();
+                }
+            });
+
+            emojiSearch.addEventListener('input', () => {
+                renderEmojis(emojiSearch.value);
+            });
+
+            document.addEventListener('click', e => {
+                if (!emojiPicker.contains(e.target) && !emojiButton.contains(e.target)) {
+                    emojiPicker.classList.remove('active');
+                }
+            });
+
+            renderEmojis();
+        }
+
+        // Auth
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                document.querySelector('.auth-modal').classList.remove('active');
+                loadMessages();
+                loadUserSettings();
+                initBot();
+                initTypingIndicator();
+                initEmojiPicker();
+            } else {
+                document.querySelector('.auth-modal').classList.add('active');
+            }
+        });
+
+        document.getElementById('login-email').addEventListener('click', () => {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            auth.signInWithEmailAndPassword(email, password).catch(error => showNotification(error.message));
+        });
+
+        document.getElementById('signup').addEventListener('click', () => {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            auth.createUserWithEmailAndPassword(email, password).catch(error => showNotification(error.message));
+        });
+
+        // User Settings
+        function loadUserSettings() {
+            db.ref(`users/${currentUser.uid}/settings`).once('value').then(snapshot => {
+                const settings = snapshot.val() || {};
+                if (settings.gradient) {
+                    const [blue, pink] = settings.gradient.split(',');
+                    document.documentElement.style.setProperty('--primary-blue', blue);
+                    document.documentElement.style.setProperty('--primary-pink', pink);
+                }
+                if (settings.fontSize) {
+                    document.documentElement.style.setProperty('--font-size', `${settings.fontSize}px`);
+                    document.getElementById('font-size').value = settings.fontSize;
+                }
+                if (settings.fontFamily) {
+                    document.body.style.fontFamily = settings.fontFamily;
+                    document.getElementById('font-family').value = settings.fontFamily;
+                }
+            });
+        }
+
+        // Messages
+        function loadMessages() {
+            db.ref(`channels/${currentChannel}/messages`).orderByChild('timestamp').limitToLast(100).on('value', snapshot => {
+                const messagesDiv = document.querySelector('.chat-messages');
+                messagesDiv.innerHTML = '<div class="typing-indicator"></div>';
+                messageCount = 0;
+                snapshot.forEach(child => {
+                    const msg = child.val();
+                    const decryptedText = msg.text ? CryptoJS.AES.decrypt(msg.text, encryptionKey).toString(CryptoJS.enc.Utf8) : '';
+                    const message = document.createElement('div');
+                    message.classList.add('message');
+                    message.dataset.id = child.key;
+                    if (msg.pinned) message.classList.add('pinned');
+                    let content = `
+                        <div class="message-avatar"><img src="${msg.avatar || 'https://via.placeholder.com/40'}"></div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-username">${msg.username}</span>
+                                <span class="message-timestamp">${new Date(msg.timestamp).toLocaleString('vi-VN')}</span>
+                            </div>
+                            <div class="message-text">${marked.parse(decryptedText)}</div>
+                            ${msg.audio ? `<div class="message-voice" id="voice-${child.key}"></div>` : ''}
+                            ${msg.customEmoji ? `<img src="${msg.customEmoji}" class="custom-emoji" style="width: 24px; height: 24px;">` : ''}
+                            ${msg.poll ? renderPoll(msg.poll, child.key) : ''}
+                            <div class="message-reactions">
+                                ${Object.entries(msg.reactions || {}).map(([emoji, count]) => `<span data-emoji="${emoji}">${emoji} ${count}</span>`).join('')}
+                            </div>
+                            <div class="message-actions">
+                                <button class="reply-btn" title="Trả lời">↩</button>
+                                <button class="edit-btn" title="Chỉnh sửa">✏</button>
+                                <button class="pin-btn" title="Ghim">📌</button>
+                                <button class="react-btn" title="Phản ứng">😊</button>
+                            </div>
+                        </div>
+                    `;
+                    message.innerHTML = content;
+                    messagesDiv.appendChild(message);
+                    if (msg.audio) {
+                        const wavesurfer = WaveSurfer.create({
+                            container: `#voice-${child.key}`,
+                            waveColor: '#22d3ee',
+                            progressColor: '#f472b6',
+                            height: 20
+                        });
+                        wavesurfer.load(msg.audio);
+                        wavesurfer.on('click', () => wavesurfer.playPause());
+                    }
+                    messageCount++;
+                });
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                if (messageCount >= 100) triggerConfetti();
+                checkAchievements();
+                document.getElementById('notification-sound').play();
+            });
+        }
+
+        function renderPoll(pollData, messageId) {
+            let html = `<p>${pollData.question}</p>`;
+            pollData.options.forEach((option, index) => {
+                const votes = pollData.votes ? pollData.votes[index] || [] : [];
+                const percentage = pollData.totalVotes ? (votes.length / pollData.totalVotes * 100).toFixed(1) : 0;
+                html += `
+                    <div class="poll-option">
+                        <span>${option}</span>
+                        <span>${percentage}% (${votes.length})</span>
+                        <div class="poll-bar" style="width: ${percentage}%"></div>
+                    </div>
+                `;
+            });
+            return `<div class="message-poll" data-id="${messageId}">${html}</div>`;
+        }
+
+        function checkAchievements() {
+            if (messageCount >= 500) {
+                db.ref(`users/${currentUser.uid}/badges`).push({ name: 'Chat Master', timestamp: Date.now() });
+                showNotification('🏅 Đạt huy hiệu "Chat Master"!');
+            }
+        }
+
+        // Message Sending
+        document.querySelector('.message-input form').addEventListener('submit', e => {
+            e.preventDefault();
+            if (!currentUser) return showNotification('Vui lòng đăng nhập!');
+            const textInput = e.target.querySelector('input[type="text"]');
+            const fileInput = e.target.querySelector('#file-upload');
+            const text = textInput.value.trim();
+            if (!text && !fileInput.files[0]) return;
+            if (text.length > 1000) return showNotification('Tin nhắn quá dài (max 1000)!');
+            const messageData = {
+                username: currentUser.email.split('@')[0],
+                text: text ? CryptoJS.AES.encrypt(text, encryptionKey).toString() : '',
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                avatar: currentUser.photoURL || 'https://via.placeholder.com/40'
+                replyTo: replyingTo,
+            };
+
+            if (fileInput.files[0]) {
+                const file = fileInput.files[0];
+                if (file.size > 2 * 1024 * 1024) return showNotification('File quá lớn (max 2MB)!');
+                const storageRef = storage.ref(`images/${file.name}`);
+                storageRef.put(file).then(() => {
+                    storageRef.getDownloadURL().then(url => {
+                        if (file.type.includes('image')) {
+                            messageData.customEmoji = url;
+                        } else {
+                            messageData.audio = url;
+                        }
+                        db.ref(`channels${currentChannel}/messages`).push(messageData);
+                    });
+                });
+            } else {
+                db.ref(`channels${currentChannel}/messages`).push(messageData);
+            }
+            textInput.value = '';
+            fileInput.value = '';
+            replyingTo = null;
+            document.querySelector('.message-text input[type="text"]').placeholder = 'Nhắn tin tại #chung';
+        });
+
+        // Voice Messages
+        let mediaRecorder = null;
+        document.querySelector('.voice-button').addEventListener('click', async () => {
+            if (!currentUser) return showNotification('Vui lòng đăng nhập!');
+            if (!mediaRecorder) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                const chunks = [];
+                mediaRecorder.ondataavailable = e => chunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunks, { type: 'audio/webm' });
+                    const file = new File([blob], `voice-${Date.now()}.webm`);
+                    const storageRef = storage.ref(`audio/${file.name}`);
+                    const snapshot = await storageRef.put(file);
+                    const url = await snapshot.ref.getDownloadURL();
+                    db.ref(`channels/${currentChannel}/messages`).push({
+                        username: currentUser.email.split('@')[0],
+                        audio: url,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP,
+                        avatar: currentUser.photoURL || 'https://via.placeholder.com/40'
+                    });
+                });
+                mediaRecorder.start();
+                showNotification('Đang ghi âm...');
+            } else {
+                mediaRecorder.stop();
+                mediaRecorder = null;
+                showNotification('Đã gửi tin nhắn giọng nói!');
+            }
+        });
+
+        // Emoji Reactions
+        document.querySelector('.chat-messages').addEventListener('click', e => {
+            const messageElement = e.target.closest('.message');
+            if (!messageElement) return;
+            const messageId = messageElement.dataset.id;
+            if (e.target.classList.contains('react-btn')) {
+                const emojiPicker = document.querySelector('.emoji-picker');
+                emojiPicker.classList.add('active');
+                const emojis = document.querySelectorAll('.emoji-picker .emojis span');
+                emojis.forEach(span => {
+                    span.addEventListener('click', () => {
+                        const emoji = span.textContent;
+                        db.ref(`channels/${currentChannel}/messages/${messageId}/reactions/${emoji}`).value().transaction(count => (count || 0) + 1);
+                        emojiPicker.classList.remove('active');
+                    });
+                });
+            } else if (e.target.classList.contains('reply-btn')) {
+                replyingTo = messageId;
+                document.querySelector('.message-input input[type="text"]').placeholder = `Trả lời ${messageElement.querySelector('.message-username').textContent}`;
+                document.querySelector('.message-input input').focus();
+            } else if (e.target.classList.contains('edit-btn') && messageElement.querySelector('.message-username').textContent === currentUser.email.split('@')[0]) {
+                const newText = prompt('Chỉnh sửa tin nhắn:', messageElement.querySelector('.message-text').textContent);
+                if (newText && newText.length <= 1000) {
+                    db.ref(`channels/${currentChannel}/${messages}/${messageId}/text`).setProperty(CryptoJS.AES.encrypt(newText, encryptionKey).toString());
+                }
+            } else if (e.target.classList.contains('pin-btn')) {
+                db.ref(`channels/${currentChannel}/${messages}/${messageId}/pinned`).setProperty(!messageElement.classList.contains('pinned'));
+            } else if (e.target.tagName === 'SELECTED' && e.target.dataset.emojis) {
+                const emoji = e.target.dataset.emojis;
+                db.ref(`channels/${currentChannel}/messages/${messageId}/reactions/${emoji/emojis`).value().transaction(count => (count || 0) + 1));
+            }
+        });
+
+        // Polls
+        document.querySelector('.poll-button').cssEventListener.add('click', () => {
+            if (!this.currentUser) return showNotification('Please login!');
+            document.querySelector('.poll-modal').classList.add('active');
+        });
+
+        document.querySelector('#getElementById('create-poll')).getElementById('addEventListener('click', () => {
+            const questionText = document.querySelector('#poll-question').value.trim();
+            const optionsText = document.querySelector('#getElementById('poll-options')).value.trim().split('\n').filter(op => op !== '');
+            if (!questionText || optionsText.length < 2) return showNotification('Need at least two options!');
+            const pollData = {
+                question: questionText,
+                options: optionsText,
+                votes: {},
+                totalVotes: optionsText0,
+            };
+            db.ref(`channels/${currentChannel}/messages`).push({
+                username: currentUser.email.split('@')[0],
+                poll: pollData.options,
+                timestamp: firebase.databaseTimeServerValue.TIMESTAMP,
+                avatar: currentUser.photoURL || 'https://via.placeholder.com/40'
+            });
+            document.querySelector('.poll-modal').classList.remove('active');
+            document.querySelector('#poll-inputquestion').value = '';
+            document.querySelector('#getElementByIdvalue = '';
+        });
+
+        // Typing Indicator
+        function initTypingIndicator(() => {
+            const inputElement = document.querySelector('.message-input input[type="text"]').value;
+            inputElement.addEventListener('input', () => {
+                db.ref(`users/typing/${currentChannel}/${currentUser.uid}`).set({
+                    typing: true,
+                    timestamp: document.querySelectorDate.now()
+                });
+                clearTimeout(inputElement.dataset.typingTimeout);
+                inputElement.dataset.typingTimeout = setTimeout(() => {
+                    db.ref(`users/typing/${currentUser.uid}/${currentUser.uid}`).remove();
+                }, 1000);
+            });
+
+            db.ref(`typing/${currentChannel}`).value().subscribe(snapshot => {
+                const typingUsers = snapshot.value.querySelector('|| {}');
+                const typingNames = Object.entries(typingUsers)
+                    .filter(([uid, data]) => data.typing && Date.now() - data.timestamp <= 2000 && uid !== currentUser.uid)
+                    .map(([_, data]) => data.user || currentUser.email.split('@')[0]);
+                    const typingIndicatorElement = document.querySelector('.typing-indicator');
+                    typingIndicatorElement.textContent = typingNames.length > 0 ? `${typingNames.join(', ')} đang nhập...` : '';
+                    typingIndicatorElement.style.display = typingNames.length > 0 ? 'block' : 'none';
+            });
+        }
+
+        // Bot
+        function initBot() {
+            db.ref(`messages/${currentChannel}/messages`).subscribe('child_added').on('value', snapshot => {
+                const message = snapshot.value();
+                const decryptedTextMessage = message.text ? CryptoJS.AES.decrypt(message.text, encryptionKey).toString(CryptoJS.encTextUtf8) : '';
+                if (decryptedTextMessage.startsWith('/')) {
+                    if (decryptedTextMessage === '/help')) {
+                        db.ref(`channels/${currentChannel}/messages`).push({
+                            name: 'HG Bot',
+                            text: CryptoJS.AES.encrypt('Lệnh: /help, /emoji, /poll, /clear', encryptionKey).toString(),
+                            timestamp: new Date.now(),
+                            avatar: '/assets/favicon.png'
+                        });
+                            } else if (decryptedTextMessage === '/roll')) {
+                                const roll = Math.floor(Math.random() * 6) + 1;
+                                db.ref(`channels/${currentChannel}/messages`).push({
+                                    name: 'HG Bot',
+                                    text: CryptoJS.AES.encrypt(`Bạn đã tung được 🎲 ${roll}!`, encryptionKey).toString(),
+                                    timestamp: Date.now().getTime(),
+                                    avatar: '/assets/favicon.png'
+                                });
+                                } else if (decryptedTextMessage === '/emoji')) {
+                                    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)].emoji;
+                                    db.ref(`channels/${currentChannel}/messages`).push({
+                                        username: 'HG Bot',
+                                        text: CryptoJS.AES.encrypt(randomEmoji, encryptionKey).toString(),
+                                        timestamp: Date.now().getTime(),
+                                        avatar: '/assets/favicon.png'
+                                    });
+                                } else if (decryptedTextMessage === '/poll')) {
+                                    document.querySelector('.poll-button').click();
+                                } else if (decryptedText.includes === '/clear' && currentUser.email === 'admin@hg.com/admin') {
+                                    db.ref(`channels/${currentChannel}/messages`).remove();
+                                }
+                            }
+                        });
+        }
+
+        // Confetti
+        function triggerConfettiEffect() {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#22d3ee', '#f472b6']
+            });
+        }
+
+        // Settings
+        document.querySelector('getElementById('toggle-theme')).css.addEventListener('click', () => {
+            document.body.classList.toggle('light-theme');
+        });
+
+        document.querySelector('getElementById('font-size')).css.addEventListener('change', e => {
+            const size = e.target.value;
+            document.documentElement.style.setProperty('--font-size', `${size}px`).value;
+            if (currentUser) {
+                db.ref(`users/${currentUser.uid}/settings`).update({ fontSize: size });
+            }
+        });
+
+        document.querySelector('getElementById('font-family')).css.addEventListener('change', e => {
+            const family = e.target.value;
+            document.body.style.setProperty('font-family', family);
+            if (currentUser) {
+                db.ref(`users/${currentUser.uid}/settings`).update({ fontFamily: family });
+            }
+        });
+
+        document.querySelector('getElementById('custom-gradient')).css.addEventListener('change', e => {
+            const gradientColors = e.target.value;
+            const colorsArray = gradientColors.split(',');
+            if (colorsArray.length === 2) {
+                document.documentElement.style.setProperty('--primary-blue', colorsArray[0]);
+                document.documentElement.style.setProperty('--primary-pink', colorsArray[1]);
+                if (currentUser) {
+                    db.ref(`users/${currentUser.uid}/settings`).update({ gradient: gradientColors });
+                }
+            }
+        });
+
+        document.querySelector('getElementById('toggle-settings')).css.addEventListener('click', () => {
+            document.querySelector('.settings-panel').classList.toggle('active');
+        });
+
+        function showNotificationMessage(message) {
+            const notificationElement = document.querySelector('getElementById('notification'));
+            notificationElement.textContent = message;
+            notificationElement.classList.add('active');
+            setTimeout(() => notificationElement.classList.remove('active'), 3000);
+        }
+    </script>
+</body>
+</html>
